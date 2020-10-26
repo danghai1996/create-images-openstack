@@ -440,7 +440,7 @@ init 0
 ## Phần 4: Nén Image Ubuntu 20.04 và tạo Image trên Openstack
 
 
-### Bước 1: Xử dụng lệnh virt-sysprep để xóa toàn bộ các thông tin máy ảo
+### Bước 1: Sử dụng lệnh virt-sysprep để xóa toàn bộ các thông tin máy ảo
 
 ```
 virt-sysprep -d OPS_Template_Ubuntu2004
