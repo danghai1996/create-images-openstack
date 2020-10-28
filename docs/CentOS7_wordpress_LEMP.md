@@ -1093,3 +1093,52 @@ glance image-create --container-format bare --visibility=public \
 --min-disk 10 --min-ram 1024 --progress
 ```
 
+## Cloud-init:
+Script
+```bash
+#!/bin/bash
+# LEMP-WP
+# NhanHoa Cloud Team 
+
+# Input from cloud-init
+new_passwd_1=$1
+new_passwd_2=$2
+ip_server=$(hostname -I | awk '{print $1}')
+
+# Get info mysql_root_passwd and wp_user_passwd password
+old_passwd_1=$(cat /root/info.txt | grep root | cut -d '/' -f2)
+old_passwd_2=$(cat /root/info.txt | grep wp_user | cut -d '/' -f2)
+
+# Change IP virtual host
+sed -Ei "s|server_ip|$ip_server|g" /etc/nginx/conf.d/default.conf
+
+# Change password
+mysqladmin --user=root --password=$old_passwd_1 password $new_passwd_1
+mysqladmin --user=wp_user --password=$old_passwd_2 password $new_passwd_2
+
+# Save info.txt
+sed -Ei "s|root\/$old_passwd_1|root\/$new_passwd_1|g" /root/info.txt
+sed -Ei "s|wp_user\/$old_passwd_2|wp_user\/$new_passwd_2|g" /root/info.txt
+# Save to setting wp-config.php
+sed -Ei "s|'$old_passwd_2'|'$new_passwd_2'|g" /usr/share/nginx/html/wp-config.php
+
+# Delete info.txt
+rm -f /root/info.txt
+```
+
+Cloud-init sau khi đã mã hóa script
+```yaml
+#cloud-config
+password: '{vps_password}'
+chpasswd: { expire: False }
+ssh_pwauth: True
+write_files:
+- encoding: gzip
+  content: !!binary |
+    H4sIAKXxmF8AA32SQU/jMBCF7/kVsxApcHCt5p4TIKgEqNIicVkpMrGTWCS2sSctK8p/XzubVA4qnGJPMt+89ybnv+iLVPSFuTY5h/ubhy153vrTY8vUnWZw1emBw5NgPSS+vFFmQKit7qEKb4hUEhMl9qVhzu15uS7SdXzPizRPpCmdsDthi/Si1Q4V6wWQDRyA7V8h+zBWKoR0/ZldhiG3AkGqWkP/1711pdUaJxwwxWFvysHj5tL40JYnuuORiouKIdDQSwNrhe/o5zVWGAhFf668E8IhoxmQOr+M+/Mf+ycBJxBe/JUPrhGw2cJOWhxYB8Fx4gQHciPhzB3+R1FKc0iPwRyaM6ACK6oaqd5ppVW94pSLmg0drsI1Yh8dj/kw3ksFhARJxWiNkPmLIo1DOTZCGm/sBGZ2+A0pP03Kg8bfbCdgTiy2HaT9oQtBcy1WMyaxiD2GTMKWnDwqx3JOoCZ9qMEJRKkav0wS4pXNyrQmHpUtRmT+HrOzET44S13LrJj21mLf0SXRj7wWncAoFNv7v+Wrsn/bTgMbiQMAAA==
+  path: /opt/wp-lemp.sh
+  permissions: '0755'
+runcmd:
+  - bash /opt/wp-lemp.sh {vps_mysql_password} {db_wp_password}
+  - rm -f /opt/wp-lemp.sh
+```
