@@ -56,7 +56,7 @@ Chọn `Done`
 
 ![](../images/ubuntu20/pic11.png)
 
-Chọn `Done`
+Chọn `Done` . Thay mirror thành Mirror của Nhân Hòa: `http://mirrors.nhanhoa.com/ubuntu`
 
 ![](../images/ubuntu20/pic12.png)
 
@@ -277,7 +277,7 @@ apt-get --purge remove netplan.io -y
 rm -rf /usr/share/netplan
 rm -rf /etc/netplan
 
-apt-get autoremove
+apt-get autoremove -y
 ```
 
 Cài đặt ifupdown
@@ -359,7 +359,59 @@ df -H
 ```
 ![](../images/ubuntu20/pic30.png)
 
-### Bước 3: Thiết lập gói cloud-init
+### Bước 3: Cài đặt CMD Log và welcome Display
+
+```
+curl -Lso- https://raw.githubusercontent.com/nhanhoadocs/ghichep-cmdlog/master/cmdlog.sh | bash
+
+wget https://raw.githubusercontent.com/nhanhoadocs/create-images-openstack/master/scripts_all/linux-login.sh -O /etc/profile.d/linux-login.sh && chmod +x /etc/profile.d/linux-login.sh
+```
+
+Log out rồi login lại kiểm tra:
+- Log cmd: `/var/log/cmdlog.log`
+- Giao diện sau khi login:
+    ```
+    Welcome to Cloud365 | nhanhoa.com
+
+    Tue 23 Mar 2021 03:04:17 PM +07
+
+    ______ __                   __ _____  _____  ______
+    / ____// /____   __  __ ____/ /|__  / / ___/ / ____/
+    / /    / // __ \ / / / // __  /  /_ < / __ \ /___ \
+    / /___ / // /_/ // /_/ // /_/ / ___/ // /_/ /____/ /
+    \____//_/ \____/ \__,_/ \__,_/ /____/ \____//_____/
+
+    * Trang chu NhanHoa : https://nhanhoa.com/
+    * Cloud365          : https://cloud365.vn/
+    * Portal            : https://portal.cloud365.vn/
+    * Huong dan su dung : https://support.cloud365.vn/
+    * Email ho tro      : support@nhanhoa.com
+
+    *----------------------------------------------------*
+
+    root@cloud:~# 
+    ```
+
+### Bước 4: Cài đặt qemu-agent
+
+Chú ý: qemu-guest-agent là một daemon chạy trong máy ảo, giúp quản lý và hỗ trợ máy ảo khi cần (có thể cân nhắc việc cài thành phần này lên máy ảo)
+
+Để có thể thay đổi password máy ảo bằng nova-set password thì phiên bản `qemu-guest-agent phải >= 2.5.0`
+
+```
+apt-get install software-properties-common -y
+apt-get update -y
+apt-get install qemu-guest-agent -y
+service qemu-guest-agent start
+```
+
+Kiểm tra phiên bản qemu-ga bằng lệnh:
+```
+qemu-ga --version
+service qemu-guest-agent status
+```
+
+### Bước 5: Thiết lập gói cloud-init
 Xóa bỏ các cấu hình cũ:
 ```
 rm -rf /etc/cloud/
@@ -400,31 +452,6 @@ systemctl status cloud-init
 
 Lưu ý: Việc restart có thể mất 2-3 phút hoặc hơn (Nếu quá lâu có thể bỏ qua bước restart cloud-init)
 
-### Bước 4: Cài đặt qemu-agent
-
-Chú ý: qemu-guest-agent là một daemon chạy trong máy ảo, giúp quản lý và hỗ trợ máy ảo khi cần (có thể cân nhắc việc cài thành phần này lên máy ảo)
-
-Để có thể thay đổi password máy ảo bằng nova-set password thì phiên bản `qemu-guest-agent phải >= 2.5.0`
-
-```
-apt-get install software-properties-common -y
-apt-get update -y
-apt-get install qemu-guest-agent -y
-service qemu-guest-agent start
-```
-
-Kiểm tra phiên bản qemu-ga bằng lệnh:
-```
-qemu-ga --version
-service qemu-guest-agent status
-```
-
-### Bước 5: Cài đặt CMD Log
-
-```
-curl -Lso- https://raw.githubusercontent.com/nhanhoadocs/ghichep-cmdlog/master/cmdlog.sh | bash
-```
-
 ### Bước 6: Dọn dẹp
 
 Clear toàn bộ history
@@ -447,21 +474,33 @@ init 0
 
 ## Phần 4: Nén Image Ubuntu 20.04 và tạo Image trên Openstack
 
-
 ### Bước 1: Sử dụng lệnh virt-sysprep để xóa toàn bộ các thông tin máy ảo
-
+> ### Thực hiện trên node KVM
 ```
 virt-sysprep -d OPS_Template_Ubuntu2004
 ```
 
 ### Bước 2: Tối ưu kích thước image:
+> ### Thực hiện trên node KVM
 
 ```
 virt-sparsify --compress --convert qcow2 /var/lib/libvirt/images/OPS_Template_Ubuntu2004.qcow2 U20-Blank
 ```
 
+Copy file `U20-Blank` sang node Controller của cụm OpenStack để tiến hành upload và test.
+
 ### Bước 3: Upload image lên glance và sử dụng
+> ### Thực hiện trên node Controller của cụm OpenStack
+Upload image theo quy trình.
+
+Ví dụ:
 
 ```
-glance image-create --name U20-Blank --disk-format qcow2 --container-format bare --file U20-Blank --visibility=public --property hw_qemu_guest_agent=yes --progress
+glance image-create --name U20-Blank \
+--disk-format qcow2 \
+--container-format bare \
+--file U20-Blank \
+--visibility=public \
+--property hw_qemu_guest_agent=yes \
+--min-disk 10 --min-ram 1024 --progress
 ```
