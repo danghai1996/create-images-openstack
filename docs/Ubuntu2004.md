@@ -276,6 +276,8 @@ Xóa netplan
 apt-get --purge remove netplan.io -y
 rm -rf /usr/share/netplan
 rm -rf /etc/netplan
+
+apt-get autoremove
 ```
 
 Cài đặt ifupdown
@@ -358,6 +360,12 @@ df -H
 ![](../images/ubuntu20/pic30.png)
 
 ### Bước 3: Thiết lập gói cloud-init
+Xóa bỏ các cấu hình cũ:
+```
+rm -rf /etc/cloud/
+rm -rf /var/lib/cloud/
+```
+
 Cài đặt cloud-init
 ```
 apt-get install -y cloud-init
